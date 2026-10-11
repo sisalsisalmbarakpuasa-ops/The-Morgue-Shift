@@ -1,0 +1,370 @@
+-- Mimiw Hub : The Morgue Shift (Halloween)
+-- ESP Candy (merah) + Auto Collect TrickOrTreatItem (teleport + ProximityPrompt 0.1)
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+local ACC = Color3.fromRGB(255, 105, 180)
+local BG = Color3.fromRGB(28, 18, 26)
+local CARD = Color3.fromRGB(48, 32, 46)
+local TXT = Color3.fromRGB(255, 240, 250)
+local SUB = Color3.fromRGB(200, 165, 190)
+local RED = Color3.fromRGB(255, 50, 50)
+local FONT = Enum.Font.GothamBold
+
+local function placeGui(inst)
+    local function try(p)
+        if not p then return false end
+        local ok = pcall(function() inst.Parent = p end)
+        return ok and inst.Parent == p
+    end
+    if gethui then
+        local ok, res = pcall(gethui)
+        if ok and try(res) then return end
+    end
+    local ok, core = pcall(function() return game:GetService("CoreGui") end)
+    if ok and try(core) then return end
+    try(PlayerGui)
+end
+
+-- bersihkan instance lama
+pcall(function()
+    local roots = { PlayerGui }
+    pcall(function() roots[#roots + 1] = game:GetService("CoreGui") end)
+    if gethui then pcall(function() roots[#roots + 1] = gethui() end) end
+    for _, r in ipairs(roots) do
+        for _, n in ipairs({ "MimiwMorgueGui", "MimiwMorgueESP" }) do
+            local o = r and r:FindFirstChild(n)
+            if o then o:Destroy() end
+        end
+    end
+end)
+if getgenv then
+    local old = getgenv().Mimiw_MorgueCleanup
+    if old then pcall(old) end
+end
+
+local S = { esp = false, auto = false, alive = true }
+local conns = {}
+
+local ESPFolder = Instance.new("Folder")
+ESPFolder.Name = "MimiwMorgueESP"
+placeGui(ESPFolder)
+
+local sg = Instance.new("ScreenGui")
+sg.Name = "MimiwMorgueGui"
+sg.ResetOnSpawn = false
+sg.DisplayOrder = 999999
+sg.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+placeGui(sg)
+
+local main = Instance.new("Frame", sg)
+main.Size = UDim2.new(0, 300, 0, 236)
+main.Position = UDim2.new(0.5, -150, 0.5, -118)
+main.BackgroundColor3 = BG
+main.BorderSizePixel = 0
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0, 14)
+local st = Instance.new("UIStroke", main)
+st.Color = ACC
+st.Thickness = 1.5
+st.Transparency = 0.4
+
+local title = Instance.new("TextLabel", main)
+title.Size = UDim2.new(1, -80, 0, 30)
+title.Position = UDim2.new(0, 14, 0, 6)
+title.BackgroundTransparency = 1
+title.Text = "🎃 Mimiw Hub"
+title.TextColor3 = ACC
+title.TextSize = 16
+title.Font = Enum.Font.GothamBlack
+title.TextXAlignment = Enum.TextXAlignment.Left
+
+local sub = Instance.new("TextLabel", main)
+sub.Size = UDim2.new(1, -80, 0, 14)
+sub.Position = UDim2.new(0, 14, 0, 30)
+sub.BackgroundTransparency = 1
+sub.Text = "The Morgue Shift (Halloween)"
+sub.TextColor3 = SUB
+sub.TextSize = 11
+sub.Font = FONT
+sub.TextXAlignment = Enum.TextXAlignment.Left
+
+local function winBtn(txt, x, col)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(0, 26, 0, 26)
+    b.Position = UDim2.new(1, x, 0, 10)
+    b.BackgroundColor3 = col
+    b.BorderSizePixel = 0
+    b.Text = txt
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextSize = 13
+    b.Font = FONT
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+local minB = winBtn("─", -64, CARD)
+local clsB = winBtn("✕", -34, Color3.fromRGB(255, 80, 100))
+
+local body = Instance.new("Frame", main)
+body.Size = UDim2.new(1, -20, 1, -56)
+body.Position = UDim2.new(0, 10, 0, 50)
+body.BackgroundTransparency = 1
+local lay = Instance.new("UIListLayout", body)
+lay.Padding = UDim.new(0, 6)
+lay.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function toggle(text, cb)
+    local row = Instance.new("TextButton", body)
+    row.Size = UDim2.new(1, 0, 0, 36)
+    row.BackgroundColor3 = CARD
+    row.BorderSizePixel = 0
+    row.AutoButtonColor = false
+    row.Text = ""
+    Instance.new("UICorner", row).CornerRadius = UDim.new(0, 10)
+    local l = Instance.new("TextLabel", row)
+    l.Size = UDim2.new(1, -70, 1, 0)
+    l.Position = UDim2.new(0, 12, 0, 0)
+    l.BackgroundTransparency = 1
+    l.Text = text
+    l.TextColor3 = TXT
+    l.TextSize = 13
+    l.Font = FONT
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    local pill = Instance.new("Frame", row)
+    pill.Size = UDim2.new(0, 42, 0, 22)
+    pill.Position = UDim2.new(1, -52, 0.5, -11)
+    pill.BackgroundColor3 = Color3.fromRGB(80, 60, 76)
+    pill.BorderSizePixel = 0
+    Instance.new("UICorner", pill).CornerRadius = UDim.new(1, 0)
+    local dot = Instance.new("Frame", pill)
+    dot.Size = UDim2.new(0, 16, 0, 16)
+    dot.Position = UDim2.new(0, 3, 0.5, -8)
+    dot.BackgroundColor3 = Color3.new(1, 1, 1)
+    dot.BorderSizePixel = 0
+    Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
+    local on = false
+    row.MouseButton1Click:Connect(function()
+        on = not on
+        pill.BackgroundColor3 = on and ACC or Color3.fromRGB(80, 60, 76)
+        dot.Position = on and UDim2.new(1, -19, 0.5, -8) or UDim2.new(0, 3, 0.5, -8)
+        cb(on)
+    end)
+end
+
+local function button(text, col, cb)
+    local b = Instance.new("TextButton", body)
+    b.Size = UDim2.new(1, 0, 0, 34)
+    b.BackgroundColor3 = col
+    b.BorderSizePixel = 0
+    b.Text = text
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.TextSize = 13
+    b.Font = FONT
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+    b.MouseButton1Click:Connect(cb)
+    return b
+end
+
+local status = Instance.new("TextLabel", body)
+status.Size = UDim2.new(1, 0, 0, 30)
+status.BackgroundTransparency = 1
+status.Text = "Candy: 0  |  TrickOrTreat: 0"
+status.TextColor3 = SUB
+status.TextSize = 11
+status.Font = FONT
+status.TextWrapped = true
+status.LayoutOrder = 99
+
+-- ---------- DATA ----------
+local candies = {}   -- [instance] = true  (nama berawalan "Candy")
+local items = {}     -- [part] = true     (nama "TrickOrTreatItem")
+local espObjs = {}   -- [instance] = {hl, bb}
+local done = {}      -- [part] = waktu terakhir diambil
+
+local function lname(o) return string.lower(o.Name) end
+
+local function addESP(o)
+    if espObjs[o] or not S.esp then return end
+    local ok = pcall(function()
+        local hl = Instance.new("Highlight")
+        hl.Adornee = o
+        hl.FillColor = RED
+        hl.OutlineColor = RED
+        hl.FillTransparency = 0.45
+        hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        hl.Parent = ESPFolder
+        local adorn = o:IsA("BasePart") and o or o:FindFirstChildWhichIsA("BasePart", true)
+        local bb
+        if adorn then
+            bb = Instance.new("BillboardGui")
+            bb.Adornee = adorn
+            bb.AlwaysOnTop = true
+            bb.Size = UDim2.new(0, 70, 0, 18)
+            bb.StudsOffset = Vector3.new(0, 2, 0)
+            local t = Instance.new("TextLabel", bb)
+            t.Size = UDim2.new(1, 0, 1, 0)
+            t.BackgroundTransparency = 1
+            t.Text = "🍬 Candy"
+            t.TextColor3 = RED
+            t.TextStrokeTransparency = 0.3
+            t.TextSize = 12
+            t.Font = FONT
+            bb.Parent = ESPFolder
+        end
+        espObjs[o] = { hl, bb }
+    end)
+    if not ok then espObjs[o] = nil end
+end
+
+local function clearESP(o)
+    local e = espObjs[o]
+    if e then
+        for _, x in ipairs(e) do pcall(function() x:Destroy() end) end
+        espObjs[o] = nil
+    end
+end
+
+local function classify(o)
+    if not (o:IsA("BasePart") or o:IsA("Model")) then return end
+    local n = lname(o)
+    if string.sub(n, 1, 5) == "candy" then
+        candies[o] = true
+        if S.esp then addESP(o) end
+    end
+    if o.Name == "TrickOrTreatItem" then
+        items[o] = true
+    end
+end
+
+local function unclassify(o)
+    if candies[o] then candies[o] = nil clearESP(o) end
+    if items[o] then items[o] = nil done[o] = nil end
+end
+
+conns[#conns + 1] = workspace.DescendantAdded:Connect(classify)
+conns[#conns + 1] = workspace.DescendantRemoving:Connect(unclassify)
+task.spawn(function()
+    local n = 0
+    for _, o in ipairs(workspace:GetDescendants()) do
+        classify(o)
+        n = n + 1
+        if n % 800 == 0 then task.wait() end
+    end
+end)
+
+local function setESP(on)
+    S.esp = on
+    if on then
+        for o in pairs(candies) do addESP(o) end
+    else
+        for o in pairs(espObjs) do clearESP(o) end
+    end
+end
+
+-- ---------- AUTO COLLECT ----------
+local function myHrp()
+    local c = LocalPlayer.Character
+    return c and c:FindFirstChild("HumanoidRootPart")
+end
+
+local function promptOf(o)
+    local p = o:FindFirstChildWhichIsA("ProximityPrompt", true)
+    if not p and o.Parent then p = o.Parent:FindFirstChildWhichIsA("ProximityPrompt", true) end
+    return p
+end
+
+local function posOf(o)
+    if o:IsA("BasePart") then return o.Position end
+    local ok, cf = pcall(function() return o:GetPivot() end)
+    return ok and cf.Position or nil
+end
+
+local busy = false
+local function collectNext()
+    if busy then return false end
+    local hrp = myHrp()
+    if not hrp then return false end
+    local now = os.clock()
+    local best, bd, bp
+    for o in pairs(items) do
+        if o.Parent and (not done[o] or now - done[o] > 4) then
+            local pos = posOf(o)
+            local pp = promptOf(o)
+            if pos and pp and pp.Enabled then
+                local d = (pos - hrp.Position).Magnitude
+                if not bd or d < bd then best, bd, bp = o, d, pp end
+            end
+        end
+    end
+    if not best then return false end
+    busy = true
+    done[best] = now
+    pcall(function()
+        local pos = posOf(best)
+        hrp.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+        hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        task.wait(0.1)
+        bp.HoldDuration = 0.1
+        if fireproximityprompt then
+            fireproximityprompt(bp)
+        end
+        task.wait(0.15)
+    end)
+    busy = false
+    return true
+end
+
+task.spawn(function()
+    while S.alive and sg.Parent do
+        if S.auto then
+            local ok = collectNext()
+            task.wait(ok and 0.2 or 0.8)
+        else
+            task.wait(0.3)
+        end
+    end
+end)
+
+task.spawn(function()
+    while S.alive and sg.Parent do
+        local nc, ni = 0, 0
+        for o in pairs(candies) do if o.Parent then nc = nc + 1 end end
+        for o in pairs(items) do if o.Parent then ni = ni + 1 end end
+        status.Text = "Candy: " .. nc .. "  |  TrickOrTreat: " .. ni
+        task.wait(1)
+    end
+end)
+
+-- ---------- UI AKSI ----------
+toggle("ESP Candy (Merah)", setESP)
+toggle("Auto Collect TrickOrTreat", function(v) S.auto = v end)
+button("Teleport & Ambil Berikutnya", ACC, function()
+    task.spawn(function()
+        if not collectNext() then
+            status.Text = "TrickOrTreatItem tidak ditemukan"
+        end
+    end)
+end)
+
+local mini = false
+minB.MouseButton1Click:Connect(function()
+    mini = not mini
+    body.Visible = not mini
+    main.Size = mini and UDim2.new(0, 300, 0, 50) or UDim2.new(0, 300, 0, 236)
+end)
+
+local function cleanup()
+    S.alive = false
+    S.auto = false
+    for _, c in ipairs(conns) do pcall(function() c:Disconnect() end) end
+    for o in pairs(espObjs) do clearESP(o) end
+    pcall(function() ESPFolder:Destroy() end)
+    pcall(function() sg:Destroy() end)
+end
+clsB.MouseButton1Click:Connect(cleanup)
+if getgenv then getgenv().Mimiw_MorgueCleanup = cleanup end
+print("[Mimiw] The Morgue Shift loaded")
